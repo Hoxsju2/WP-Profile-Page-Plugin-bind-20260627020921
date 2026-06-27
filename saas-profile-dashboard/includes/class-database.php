@@ -10,6 +10,7 @@ class SPD_Database {
         // Tabs table
         $table_name = $wpdb->prefix . 'spd_tabs';
         
+        // Notice the strictly formatted 'PRIMARY KEY  (id)' which dbDelta requires
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             tab_name varchar(255) NOT NULL,
@@ -22,7 +23,7 @@ class SPD_Database {
             is_active tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             UNIQUE KEY tab_slug (tab_slug)
         ) $charset_collate;";
         
@@ -48,7 +49,7 @@ class SPD_Database {
             is_active tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             UNIQUE KEY role_slug (role_slug)
         ) $charset_collate;";
         
@@ -60,7 +61,6 @@ class SPD_Database {
             self::create_default_tabs();
         }
         
-        // Create default role configurations
         self::create_default_role_configs();
     }
     
@@ -98,7 +98,6 @@ class SPD_Database {
             )
         );
         
-        // Add Orders tab if WooCommerce is active
         if (class_exists('WooCommerce')) {
             $default_tabs[] = array(
                 'tab_name' => 'Orders',
@@ -121,17 +120,14 @@ class SPD_Database {
         global $wpdb;
         $table_name = $wpdb->prefix . 'spd_role_configs';
         
-        // Check if we already have role configs
         $existing = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
         if ($existing > 0) {
             return;
         }
         
-        // Get all WordPress roles
         $wp_roles = wp_roles();
         $roles = $wp_roles->roles;
         
-        // Get all tab slugs
         $tabs = self::get_tabs(false);
         $all_tab_slugs = array();
         foreach ($tabs as $tab) {
@@ -139,12 +135,10 @@ class SPD_Database {
         }
         
         foreach ($roles as $role_slug => $role_data) {
-            // Skip administrator role
             if ($role_slug === 'administrator') {
                 continue;
             }
             
-            // Default configuration for all roles
             $config = array(
                 'role_slug' => $role_slug,
                 'role_name' => $role_data['name'],
@@ -244,7 +238,6 @@ class SPD_Database {
         return $max_order ? intval($max_order) : 0;
     }
     
-    // Role configuration methods
     public static function get_role_config($role_slug) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'spd_role_configs';
@@ -252,7 +245,6 @@ class SPD_Database {
         $config = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE role_slug = %s AND is_active = 1", $role_slug));
         
         if ($config) {
-            // Unserialize array fields
             $config->allowed_tabs = maybe_unserialize($config->allowed_tabs);
             $config->quick_action_tabs = maybe_unserialize($config->quick_action_tabs);
         }
@@ -280,7 +272,6 @@ class SPD_Database {
         global $wpdb;
         $table_name = $wpdb->prefix . 'spd_role_configs';
         
-        // Serialize array fields
         if (isset($data['allowed_tabs']) && is_array($data['allowed_tabs'])) {
             $data['allowed_tabs'] = maybe_serialize($data['allowed_tabs']);
         }
@@ -314,7 +305,6 @@ class SPD_Database {
             return null;
         }
         
-        // Get the first role (primary role)
         $user_role = $user->roles[0];
         
         return self::get_role_config($user_role);

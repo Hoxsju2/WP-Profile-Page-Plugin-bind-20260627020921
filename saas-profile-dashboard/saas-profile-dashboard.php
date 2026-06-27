@@ -3,7 +3,7 @@
  * Plugin Name: SaaS Profile Dashboard
  * Plugin URI: https://example.com
  * Description: Modernize WordPress user profile pages with a SaaS concept, custom tabs, and WooCommerce integration.
- * Version: 1.0.0
+ * Version: 1.0.6
  * Author: Your Name
  * License: GPL v2 or later
  * Text Domain: saas-profile-dashboard
@@ -17,14 +17,12 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SPD_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPD_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('SPD_VERSION', '1.0.0');
+define('SPD_VERSION', '1.0.6');
 
 class SaaSProfileDashboard {
     
     public function __construct() {
         add_action('init', array($this, 'init'));
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         add_action('admin_init', array($this, 'check_database'));
     }
     
@@ -38,7 +36,7 @@ class SaaSProfileDashboard {
     private function includes() {
         require_once SPD_PLUGIN_PATH . 'includes/class-database.php';
         require_once SPD_PLUGIN_PATH . 'includes/class-profile-handler.php';
-        require_once SPD_PLUGIN_PATH . 'includes/class-ajax-handler.php';
+        require_once SPD_PLUGIN_PATH . 'includes/class-woocommerce-integration.php';
         
         if (is_admin()) {
             require_once SPD_PLUGIN_PATH . 'admin/class-admin-panel.php';
@@ -55,10 +53,9 @@ class SaaSProfileDashboard {
         if (class_exists('SPD_Profile_Handler')) {
             new SPD_Profile_Handler();
         }
-        if (class_exists('SPD_Ajax_Handler')) {
-            new SPD_Ajax_Handler();
+        if (class_exists('SPD_WooCommerce_Integration')) {
+            new SPD_WooCommerce_Integration();
         }
-        
         if (is_admin() && class_exists('SPD_Admin_Panel')) {
             new SPD_Admin_Panel();
         }
@@ -88,14 +85,14 @@ class SaaSProfileDashboard {
         
         global $wpdb;
         $table_name = $wpdb->prefix . 'spd_tabs';
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
         
         if (!$table_exists && class_exists('SPD_Database')) {
             SPD_Database::create_tables();
         }
     }
     
-    public function activate() {
+    public static function activate() {
         require_once SPD_PLUGIN_PATH . 'includes/class-database.php';
         
         if (class_exists('SPD_Database')) {
@@ -106,17 +103,20 @@ class SaaSProfileDashboard {
         add_option('spd_plugin_activated', true);
     }
     
-    public function deactivate() {
+    public static function deactivate() {
         flush_rewrite_rules();
         delete_option('spd_plugin_activated');
         
-        // Clear scheduled events
         $timestamp = wp_next_scheduled('spd_daily_exchange_update');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'spd_daily_exchange_update');
         }
     }
 }
+
+// Hook activation and deactivation strictly statically
+register_activation_hook(__FILE__, array('SaaSProfileDashboard', 'activate'));
+register_deactivation_hook(__FILE__, array('SaaSProfileDashboard', 'deactivate'));
 
 // Initialize the plugin
 new SaaSProfileDashboard();
